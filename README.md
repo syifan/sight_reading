@@ -15,6 +15,24 @@ browser and deploys to **GitHub Pages**.
 - 📈 Score, streak, and accuracy tracking (saved in your browser)
 - ➕ Optional ledger-line notes for an extra challenge
 - 🌙 Light & dark themes
+- 📲 Installable PWA — add it to your home screen / desktop and use it offline
+
+## Install as an app
+
+The site is a Progressive Web App, so you can install it for an app-like,
+offline-capable experience:
+
+- **iPhone/iPad (Safari):** Share → *Add to Home Screen*
+- **Android (Chrome):** menu → *Install app* / *Add to Home Screen*
+- **Desktop (Chrome/Edge):** the install icon in the address bar
+
+Once installed it launches in its own window and works without a connection.
+
+### Icons
+
+App icons are generated from `scripts/icon.svg` into `public/` and committed,
+so a normal build needs no extra tooling. To regenerate them after editing the
+SVG, run `npm i -D sharp` then `node scripts/gen-icons.mjs`.
 
 ## Development
 
