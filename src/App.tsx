@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Moon, Sun, Music4, Check, X, RotateCcw } from "lucide-react";
+import {
+  Moon,
+  Sun,
+  Music4,
+  Check,
+  X,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { Staff } from "@/components/Staff";
+import { Burst } from "@/components/Burst";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,12 +21,14 @@ import {
 import { cn } from "@/lib/utils";
 import {
   LETTERS,
+  pitchToMidi,
   randomQuestion,
   toVexKey,
   type ClefMode,
   type Letter,
   type Question,
 } from "@/lib/notes";
+import { playMilestone, playPitch } from "@/lib/audio";
 
 type Status = "idle" | "correct" | "wrong";
 
@@ -69,12 +81,18 @@ export default function App() {
     loadJSON<Stats>("sr.stats", EMPTY_STATS)
   );
 
+  const [sound, setSound] = useState<boolean>(() => loadJSON("sr.sound", true));
+
   const [question, setQuestion] = useState<Question>(() =>
     randomQuestion(loadJSON<ClefMode>("sr.mode", "treble"), loadJSON("sr.ledger", false))
   );
   const [status, setStatus] = useState<Status>("idle");
   const [picked, setPicked] = useState<Letter | null>(null);
+  const [correctTrigger, setCorrectTrigger] = useState(0);
+  const [milestoneTrigger, setMilestoneTrigger] = useState(0);
+  const [milestoneStreak, setMilestoneStreak] = useState<number | null>(null);
   const timerRef = useRef<number | null>(null);
+  const milestoneTimerRef = useRef<number | null>(null);
 
   // Persist settings & stats.
   useEffect(() => {
@@ -89,6 +107,10 @@ export default function App() {
   useEffect(
     () => localStorage.setItem("sr.stats", JSON.stringify(stats)),
     [stats]
+  );
+  useEffect(
+    () => localStorage.setItem("sr.sound", JSON.stringify(sound)),
+    [sound]
   );
 
   const nextQuestion = useCallback(() => {
@@ -114,20 +136,36 @@ export default function App() {
       const correct = letter === question.pitch.letter;
       setPicked(letter);
       setStatus(correct ? "correct" : "wrong");
-      setStats((s) => {
-        const streak = correct ? s.streak + 1 : 0;
-        return {
-          correct: s.correct + (correct ? 1 : 0),
-          total: s.total + 1,
-          streak,
-          best: Math.max(s.best, streak),
-        };
-      });
+
+      const newStreak = correct ? stats.streak + 1 : 0;
+      setStats((s) => ({
+        correct: s.correct + (correct ? 1 : 0),
+        total: s.total + 1,
+        streak: correct ? s.streak + 1 : 0,
+        best: Math.max(s.best, correct ? s.streak + 1 : 0),
+      }));
+
       if (correct) {
-        timerRef.current = window.setTimeout(nextQuestion, 750);
+        if (sound) playPitch(pitchToMidi(question.pitch));
+        setCorrectTrigger((t) => t + 1);
+
+        if (newStreak > 0 && newStreak % 5 === 0) {
+          setMilestoneTrigger((m) => m + 1);
+          setMilestoneStreak(newStreak);
+          if (milestoneTimerRef.current) {
+            clearTimeout(milestoneTimerRef.current);
+          }
+          milestoneTimerRef.current = window.setTimeout(
+            () => setMilestoneStreak(null),
+            1400
+          );
+          if (sound) playMilestone();
+        }
+
+        timerRef.current = window.setTimeout(nextQuestion, 850);
       }
     },
-    [status, question, nextQuestion]
+    [status, question, stats.streak, sound, nextQuestion]
   );
 
   // Keyboard shortcuts: letter keys to answer, space/enter to advance.
@@ -150,6 +188,7 @@ export default function App() {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (milestoneTimerRef.current) clearTimeout(milestoneTimerRef.current);
     };
   }, []);
 
@@ -178,14 +217,28 @@ export default function App() {
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setDark((d) => !d)}
-            aria-label="Toggle dark mode"
-          >
-            {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSound((s) => !s)}
+              aria-label={sound ? "Mute sound" : "Unmute sound"}
+            >
+              {sound ? (
+                <Volume2 className="h-5 w-5" />
+              ) : (
+                <VolumeX className="h-5 w-5" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDark((d) => !d)}
+              aria-label="Toggle dark mode"
+            >
+              {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+          </div>
         </header>
 
         {/* Stats */}
@@ -217,7 +270,7 @@ export default function App() {
           <CardContent>
             <div
               className={cn(
-                "rounded-xl bg-white p-2",
+                "relative rounded-xl bg-white p-2",
                 status === "wrong" && "animate-shake"
               )}
             >
@@ -232,6 +285,15 @@ export default function App() {
                     : "#7c3aed"
                 }
               />
+              <Burst trigger={correctTrigger} />
+              <Burst trigger={milestoneTrigger} big />
+              {milestoneStreak !== null && (
+                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                  <div className="animate-pop rounded-full bg-gradient-to-r from-primary to-destructive px-5 py-2 text-lg font-extrabold text-white shadow-xl">
+                    🔥 {milestoneStreak} streak!
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Answer keys */}

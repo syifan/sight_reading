@@ -36,6 +36,21 @@ export function toVexKey(p: Pitch): string {
   return `${p.letter.toLowerCase()}/${p.octave}`;
 }
 
+const SEMITONE_FROM_C: Record<Letter, number> = {
+  C: 0,
+  D: 2,
+  E: 4,
+  F: 5,
+  G: 7,
+  A: 9,
+  B: 11,
+};
+
+/** Convert a natural pitch to a MIDI note number (middle C = 60). */
+export function pitchToMidi(p: Pitch): number {
+  return (p.octave + 1) * 12 + SEMITONE_FROM_C[p.letter];
+}
+
 /**
  * Natural-note ranges per clef. "core" stays on the five staff lines and
  * their spaces; "full" adds a few ledger-line notes above and below.
