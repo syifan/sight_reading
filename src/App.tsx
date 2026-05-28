@@ -28,7 +28,7 @@ import {
   type Letter,
   type Question,
 } from "@/lib/notes";
-import { playMilestone, playPitch } from "@/lib/audio";
+import { playMilestone, playPitch, playWrong } from "@/lib/audio";
 
 type Status = "idle" | "correct" | "wrong";
 
@@ -163,6 +163,8 @@ export default function App() {
         }
 
         timerRef.current = window.setTimeout(nextQuestion, 850);
+      } else if (sound) {
+        playWrong();
       }
     },
     [status, question, stats.streak, sound, nextQuestion]

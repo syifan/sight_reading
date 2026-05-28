@@ -64,3 +64,16 @@ export function playMilestone() {
     tone(c, midiToFreq(m), now + i * 0.08, 0.5, "triangle", 0.18);
   });
 }
+
+/**
+ * A gentle two-note descending sine for a wrong answer — soft enough not to
+ * feel punitive, but distinct from the correct chime.
+ */
+export function playWrong() {
+  const c = getCtx();
+  if (!c) return;
+  const now = c.currentTime;
+  // A3 -> F3, sine, low gain.
+  tone(c, midiToFreq(57), now, 0.2, "sine", 0.08);
+  tone(c, midiToFreq(53), now + 0.13, 0.26, "sine", 0.08);
+}
